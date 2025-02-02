@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import "./App.css";
-import yaml from "js-yaml";
 
 function App() {
     const [userInput, setUserInput] = useState("");
@@ -12,35 +11,44 @@ function App() {
     // Function to send message to Rasa server
     const sendMessage = async () => {
         if (!userInput.trim()) return;
-
+    
         // Add the user's message to the chat
         const userMessage = { text: userInput, sender: "user" };
         setMessages((prevMessages) => [...prevMessages, userMessage]);
         setUserInput(""); // Clear the input box
-
+    
         try {
             console.log("Sending message to Rasa:", userInput);
-            const yamlMessage = yaml.dump({ message: userInput });
+    
+            // Send the message in the correct format
+            const jsonMessage = JSON.stringify({
+                sender: "user", // Ensure sender is specified
+                message: userInput,
+            });
+    
             const response = await fetch(rasaServerUrl, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/x-yaml",
+                    "Content-Type": "application/json", // Ensure the Content-Type is application/json
                 },
-                body: yamlMessage,
+                body: jsonMessage, // Send as JSON
             });
-
+    
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+    
             const data = await response.json();
             console.log("Rasa response:", data);
-
+    
             // If response contains messages, display them in the chat
             if (data && data.length > 0) {
                 setMessages((prevMessages) => [
                     ...prevMessages,
-                    ...data.map((msg) => ({ text: msg.text, sender: "bot" })),
+                    ...data.map((msg) => ({
+                        text: msg.text || "No response from Rasa",
+                        sender: "bot",
+                    })),
                 ]);
             } else {
                 console.warn("No response from Rasa");
@@ -57,6 +65,7 @@ function App() {
             ]);
         }
     };
+    
 
     // Handle keypress event to trigger message send on Enter
     const handleKeyPress = (e) => {
